@@ -52,7 +52,7 @@ FIELD_MAP = {
     "bba2ac4fe94f03ecdd992fb776f72920365333ac": "Consorcio",
     "ca61a683d1602938a67b5431d929affc35a8c486": "kWh Contratado",
     "f6671d52cf7acaa5c7ee0370fd43e064078f913e": "kWh Nao Compensavel",
-    "f29736fac633e87f54f381b99b362adb1e7bb0ee": "Cidade da Instalacao",
+    "1325319e5d2ac98f8aede28d200773fa867dae18": "Cidade da Instalacao",
     "stage_change_time": "Data da Ultima Alteracao da Etapa",
     "6aa88ec119316d071ba4d6f48fcdd921877b0baf": "Data de Assinatura",
     "add_time": "Negocio Criado Em",
@@ -167,6 +167,28 @@ def fetch_stages_map() -> tuple[dict[int, str], dict[int, int]]:
             stages_order[stage["id"]] = position
 
     return stages_map, stages_order
+
+
+def fetch_pipelines_map() -> dict[int, str]:
+    """
+    Busca todos os pipelines da conta via API e retorna um dicionario
+    { pipeline_id: pipeline_name }.
+    """
+    pipelines_map: dict[int, str] = {}
+    url = f"{BASE_URL}/pipelines"
+    params = {"api_token": API_TOKEN}
+    response = requests.get(url, params=params, timeout=60)
+    response.raise_for_status()
+    data = response.json()
+
+    if not data.get("success"):
+        print("AVISO: Nao foi possivel buscar pipelines")
+        return pipelines_map
+
+    for pipeline in (data.get("data") or []):
+        pipelines_map[pipeline["id"]] = pipeline["name"]
+
+    return pipelines_map
 
 
 def resolve_field_value(
@@ -307,6 +329,7 @@ def fetch_all_deals(
     options_map: dict[str, dict[int, str]],
     stages_map: dict[int, str],
     stages_order: dict[int, int],
+    pipelines_map: dict[int, str],
 ) -> list[dict]:
     """
     Busca TODOS os deals da conta ({BASE_URL}/deals), tratando paginacao automatica.
@@ -398,6 +421,24 @@ def fetch_all_deals(
             else:
                 mapped_deal["Valor de Assinatura (R$)"] = None
 
+            # Custo Nao Compensavel: kWh Nao Compensavel * TARIFA_KWH
+            kwh_nao_compensavel = mapped_deal.get("kWh Nao Compensavel")
+            if kwh_nao_compensavel is not None:
+                mapped_deal["Custo Nao Compensavel"] = round(
+                    float(kwh_nao_compensavel) * TARIFA_KWH, 2
+                )
+            else:
+                mapped_deal["Custo Nao Compensavel"] = None
+
+            # Funil: nome do pipeline ao qual o deal pertence
+            raw_pipeline_id = deal.get("pipeline_id")
+            if raw_pipeline_id is not None:
+                mapped_deal["Funil"] = pipelines_map.get(
+                    int(raw_pipeline_id), str(raw_pipeline_id)
+                )
+            else:
+                mapped_deal["Funil"] = None
+
             all_deals.append(mapped_deal)
 
         # Verifica se ha mais paginas
@@ -424,9 +465,13 @@ def main() -> dict:
     stages_map, stages_order = fetch_stages_map()
     print(f"  -> {len(stages_map)} etapa(s) carregada(s)")
 
+    print("Buscando pipelines...")
+    pipelines_map = fetch_pipelines_map()
+    print(f"  -> {len(pipelines_map)} pipeline(s) carregado(s)")
+
     # 2. Buscar deals
     print("Buscando todos os deals da conta...")
-    all_deals = fetch_all_deals(options_map, stages_map, stages_order)
+    all_deals = fetch_all_deals(options_map, stages_map, stages_order, pipelines_map)
     print(f"  -> {len(all_deals)} deal(s) encontrado(s) no total")
 
     result: dict = {}
