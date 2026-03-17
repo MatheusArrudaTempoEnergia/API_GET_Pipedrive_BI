@@ -338,6 +338,7 @@ def fetch_all_deals(
     para posterior separacao.
     """
     all_deals: list[dict] = []
+    seen_ids: set[int] = set()
     start = 0
 
     while True:
@@ -365,6 +366,12 @@ def fetch_all_deals(
 
         # Extrai e resolve os campos mapeados de cada deal
         for deal in deals_raw:
+            deal_id = deal.get("id")
+            if deal_id is not None:
+                if deal_id in seen_ids:
+                    continue
+                seen_ids.add(deal_id)
+
             raw_stage_id = deal.get("stage_id")
             mapped_deal = {
                 "id": deal.get("id"),
