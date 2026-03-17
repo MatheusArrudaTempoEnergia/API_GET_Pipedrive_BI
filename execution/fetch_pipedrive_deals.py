@@ -419,9 +419,17 @@ def fetch_all_deals(
             # Valor de Assinatura (R$):
             # kWh Contratado * TARIFA_KWH * (1 - percentual_do_plano)
             kwh_contratado = mapped_deal.get("kWh Contratado")
-            percentual = _extract_plan_percentage(
-                mapped_deal.get("Tipo do Plano")
-            )
+            tipo_plano = mapped_deal.get("Tipo do Plano")
+            percentual = _extract_plan_percentage(tipo_plano)
+            
+            if tipo_plano == "Outro":
+                perc_concedido = mapped_deal.get("Percentual Concedido")
+                if perc_concedido is not None:
+                    try:
+                        percentual = float(str(perc_concedido).replace(',', '.')) / 100
+                    except (ValueError, TypeError):
+                        pass
+
             if kwh_contratado is not None and percentual is not None:
                 mapped_deal["Valor de Assinatura (R$)"] = round(
                     float(kwh_contratado) * TARIFA_KWH * (1 - percentual), 2
