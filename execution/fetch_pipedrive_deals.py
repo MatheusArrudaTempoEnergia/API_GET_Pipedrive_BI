@@ -69,6 +69,7 @@ DATE_FIELDS = [
 ENUM_FIELDS = [
     "fae8184ad9ee4befb23365ad84e47c76e03c6f71",  # Tipo do Plano
     "bba2ac4fe94f03ecdd992fb776f72920365333ac",  # Consorcio
+    "b4233a37174ad172b79ec854faab5d280ec78fa3",  # Lead (Origem)
 ]
 
 # Campos do tipo "multipla escolha" (set) — retornam IDs separados por virgula
